@@ -78,6 +78,57 @@ function run_quit_program() {
 function run_add-sub_program() {
     file_path=$1
     echo "add-sub pro"
+    line2=`head -2 $file_path | tail -1`
+    line3=`head -3 $file_path | tail -1`
+
+    #check is positive numbers
+    if ! [[ $line2 =~ ^[0-9]+ ]] || ! [[ $line3 =~ ^[0-9]+ ]]
+    then
+        echo "file: data values must be positive digits"
+        exit 1
+    fi
+    #check is numbers within range
+    if ! [ $line2 -le "128" ] || ! [ $line3 -le "128" ]
+        then
+            echo "file: data values must be within 0-128"
+            exit 1
+    fi
+
+    #array time
+    dataArray=()
+    dataArray[0]=$line2
+    dataArray[1]=$line3
+
+    file_lines=`wc -l < $file_path`
+    file_lines=$(( file_lines - 3 ))
+    
+    #process only lines after line 3, up to 100 lines
+    for line in `tail -$file_lines $file_path | head -100`
+    do
+        if [ ${#line} -gt "11" ]
+        then
+            echo -e "file: command $line longer than 11 characters"
+            exit 1
+        fi
+
+        IFS=',' splitLine=($line)
+
+        #will also need to check if COMMAND,var,var format
+
+        ins=${splitLine[0]}
+        if ! [[ `echo $ins | grep -E 'LOAD|STORE|ADD|SUB|QUIT|PRINT'` ]]
+        then
+            echo -e "file: command $ins not found"
+            exit 1
+        fi
+        
+
+        reg=${splitLine[1]}
+        mem=${splitLine[2]}
+    done
+
+    echo "success add/sub"
+
 }
 
 #check n
