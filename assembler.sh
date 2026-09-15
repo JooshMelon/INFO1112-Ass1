@@ -61,12 +61,10 @@ function run_quit_program() {
     then
         rm program.bin
         touch program.bin
-        printf '\x20' >> program.bin 
-        printf '\x00' >> program.bin
-        printf '\x00' >> program.bin
+        printf '\x20' >> program.bin #byte 1
+        printf '\x00' >> program.bin #byte 2
 
         echo "It is a QUIT program"
-        echo "***********"
         echo "the content of the .bin file is:"
         echo `xxd program.bin`
         exit 0
@@ -75,9 +73,25 @@ function run_quit_program() {
         exit 1
     fi
 }
+
+function dec_to_bin() {
+    membin=''
+    tmp=$1
+    for weight in 128 64 32 16 8 4 2 1
+    do
+        if (( $tmp >= $weight )); then
+            bit=1
+            tmp=$(( $tmp - $weight ))
+        else
+            bit=0
+        fi
+        membin="$membin$bit"
+    done
+    echo $membin
+}
+
 function run_add-sub_program() {
     file_path=$1
-    echo "add-sub pro"
     line2=`head -2 $file_path | tail -1`
     line3=`head -3 $file_path | tail -1`
 
@@ -96,15 +110,17 @@ function run_add-sub_program() {
 
     #array time
     dataArray=()
-    dataArray[0]=$line2
-    dataArray[1]=$line3
+    dataArray[0]=`dec_to_bin $line2`
+    dataArray[1]=`dec_to_bin $line3`
 
     file_lines=`wc -l < $file_path`
     file_lines=$(( file_lines - 3 ))
     
     #process only lines after line 3, up to 100 lines
+    iterator=0
     for line in `tail -$file_lines $file_path | head -100`
     do
+
         if [ ${#line} -gt "11" ]
         then
             echo -e "file: command $line longer than 11 characters"
@@ -112,22 +128,95 @@ function run_add-sub_program() {
         fi
 
         IFS=',' splitLine=($line)
-
-        #will also need to check if COMMAND,var,var format
-
+        
         ins=${splitLine[0]}
         if ! [[ `echo $ins | grep -E 'LOAD|STORE|ADD|SUB|QUIT|PRINT'` ]]
         then
             echo -e "file: command $ins not found"
             exit 1
         fi
-        
-
         reg=${splitLine[1]}
         mem=${splitLine[2]}
-    done
 
-    echo "success add/sub"
+        if [ "$ins" == "LOAD" ]
+        then
+            ins='000001'
+        elif [ "$ins" == "STORE" ]
+        then
+            ins='000010'
+        elif [ "$ins" == "ADD" ]
+        then
+            ins='000011'
+        elif [ "$ins" == "SUB" ]
+        then
+            ins='000100'
+        elif [ "$ins" == "QUIT" ]
+        then
+            ins='001000'
+        elif [ "$ins" == "PRINT" ]
+        then
+            ins='001001'
+        fi
+
+        if [[ $reg =~ ^[0-3]$ ]]
+        then
+            if [ $reg -eq "0" ]
+            then
+                reg='00'
+            elif [ $reg -eq "1" ]
+            then
+                reg='01'
+            elif [ $reg -eq "2" ]
+            then
+                reg='10'
+            elif [ $reg -eq "3" ]
+            then
+                reg='11'
+            fi
+        else
+            echo -e "file: $reg must be a number 0-3"
+            exit 1
+        fi
+
+        if [[ $mem =~ ^[0-9]+ ]]
+        then
+            if [ $mem -le "255" ]
+            then
+                mem=`dec_to_bin $mem` #success
+            else
+                echo -e "$mem must be a number from 0-255"
+                exit 1
+            fi
+        else
+            echo -e "$mem must be a number from 0-255"
+            exit 1
+        fi
+
+        iterator=$(( $iterator + 2 ))
+        dataArray[$iterator]="$ins$reg"
+        datayArray[$(( $iterator + 1 ))]="$mem"
+        echo "Line $(( $iterator + 2 )): ${splitLine[0]},${splitLine[1]},${splitLine[2]} <VALID>"
+        #echo "${dataArray[$iterator]} : ${datayArray[$(( $iterator + 1 ))]}"
+    done
+    #dataArray[$(( $iterator + 2))]="$mem"
+
+    rm program.bin
+    touch program.bin
+    prev_data=""
+    hiya=""
+    for data in ${dataArray[@]}; do
+        echo "$data" >> program.bin
+        echo $prev_data : $data
+        if [ "$prev_data" == "00100000" ] && [ "$data" == "00000000" ]; then
+            echo "It is a ADD/SUB program"
+            echo "the content of the .bin file is:"
+            echo `xxd program.bin`
+            exit 0
+        fi
+        prev_data="$data"
+    done
+    echo -e "file: must end with QUIT,0,0"
+    exit 1
 
 }
 
@@ -145,28 +234,3 @@ else
         exit 1
     fi
 fi
-
-stret='''
-i=0 #iterator
-#one extra check for if the last line has a nonzero length
-while IFS= read -r line || [ -n "$line" ]
-do
-    if [ $i -eq "0"  ]
-    then
-        if [[ $line =~ "0" ]]
-        then
-            run_quit_program $line
-        fi
-    else 
-        if [ $i -le "2" ]
-        then
-            if [[ $line =~ QUIT* ]]
-        fi
-    fi
-
-    #debug stuff
-    echo "$line"
-    ((i++))
-done < $file_path
-echo $i
-'''
