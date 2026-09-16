@@ -54,6 +54,11 @@ then
 fi
 
 #NOW LOOK AT THE VALID FILE AND VALIDATE/CONVERT COMMANDS
+function successful_program() {
+    echo "the content of the .bin file is:"
+    echo `xxd -p -c 1 program.bin`
+    exit 0
+}
 
 function run_quit_program() {
     file_path=$1
@@ -64,10 +69,7 @@ function run_quit_program() {
         printf '\x20' >> program.bin #byte 1
         printf '\x00' >> program.bin #byte 2
 
-        echo "It is a QUIT program"
-        echo "the content of the .bin file is:"
-        echo `xxd program.bin`
-        exit 0
+        successful_program
     else
         echo -e "file: incorrect file layout"
         exit 1
@@ -117,7 +119,6 @@ function run_add-sub_program() {
     file_lines=$(( file_lines - 3 ))
     
     #process only lines after line 3, up to 100 lines
-    iterator=0
     for line in `tail -$file_lines $file_path | head -100`
     do
 
@@ -158,6 +159,11 @@ function run_add-sub_program() {
             ins='001001'
         fi
 
+        if [[ $reg == '' ]]
+        then
+            echo -e "The reg. part of ${splitLine[0]}, is empty."
+            exit 1
+        fi
         if [[ $reg =~ ^[0-3]$ ]]
         then
             if [ $reg -eq "0" ]
@@ -174,10 +180,15 @@ function run_add-sub_program() {
                 reg='11'
             fi
         else
-            echo -e "file: $reg must be a number 0-3"
+            echo -e "file: $reg must be a number."
             exit 1
         fi
 
+        if [[ $mem == '' ]]
+        then
+            echo -e "The mem. part of ${splitLine[0]},${splitLine[1]} is empty."
+            exit 1
+        fi
         if [[ $mem =~ ^[0-9]+ ]]
         then
             if [ $mem -le "255" ]
@@ -188,30 +199,23 @@ function run_add-sub_program() {
                 exit 1
             fi
         else
-            echo -e "$mem must be a number from 0-255"
+            echo -e "file: $mem must be a number."
             exit 1
         fi
 
-        iterator=$(( $iterator + 2 ))
-        dataArray[$iterator]="$ins$reg"
-        datayArray[$(( $iterator + 1 ))]="$mem"
-        echo "Line $(( $iterator + 2 )): ${splitLine[0]},${splitLine[1]},${splitLine[2]} <VALID>"
-        #echo "${dataArray[$iterator]} : ${datayArray[$(( $iterator + 1 ))]}"
-    done
-    #dataArray[$(( $iterator + 2))]="$mem"
+        dataArray+=("$ins$reg")
+        dataArray+=("$mem")
+    done < <(ls -1 | head -2)
 
     rm program.bin
     touch program.bin
     prev_data=""
-    hiya=""
     for data in ${dataArray[@]}; do
-        echo "$data" >> program.bin
-        echo $prev_data : $data
+        echo $data >> program.bin
+        #printf "\x$data" >> program.bin
+        #echo "obase=16; ibase=2; $data" | bc >> program.bin
         if [ "$prev_data" == "00100000" ] && [ "$data" == "00000000" ]; then
-            echo "It is a ADD/SUB program"
-            echo "the content of the .bin file is:"
-            echo `xxd program.bin`
-            exit 0
+            successful_program
         fi
         prev_data="$data"
     done
@@ -224,10 +228,12 @@ function run_add-sub_program() {
 n=`head -1 $file_path`
 if [[ n -eq "0" ]]
 then
+    echo "It is a QUIT program"
     run_quit_program $file_path
 else
     if [[ n -eq "2" ]]
     then
+        echo "It is an ADD/SUB program"
         run_add-sub_program $file_path
     else
         echo -e "file: file is invalid - no .bin file is produced"
