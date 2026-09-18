@@ -1,26 +1,35 @@
+#Joshua Ottaviano
+#jott0514
+#560603222
+# USYD CODE CITATION ACKNOWLEDGEMENT
+# This file contains acknowledgements for ideas and/or code
+
+
 #!/bin/bash
 #.vsc -> .bin (binary)
 
-#16 bits long instructions (2 bytes)
-    #6 bits opcode, 2 bits register info, 8 bits memory address
-#256 bytes (2048 bits) of memory
-#4 registers
+#instructions
+    #16 bits long instructions (2 bytes)
+        #6 bits opcode, 2 bits register info, 8 bits memory address
+    #256 bytes (2048 bits) of memory
+    #4 registers
 
-#INITIAL STATE
-#256-long array all 0s
-#4-long registers array all 0s
-#program counter counts by byte, 
-    #e.g. first instruction is at memory address 0 and 1. Address (N, N+1)
+    #INITIAL STATE
+    #256-long array all 0s
+    #4-long registers array all 0s
+    #program counter counts by byte, 
+        #e.g. first instruction is at memory address 0 and 1. Address (N, N+1)
 
-#VSC LAYOUT
-#1 byte, a number (n) saying how many values will be provided
-#n static values which will initialise memory from address 0 to (n-1)
-#instructions per 2 bytes, loaded into memory starting with address n.
+    #VSC LAYOUT
+    #1 byte, a number (n) saying how many values will be provided
+    #n static values which will initialise memory from address 0 to (n-1)
+    #instructions per 2 bytes, loaded into memory starting with address n.
 
-#ASSEMBLER:
-#take 1 argument only
-#should be a pre-existing .vsc file
+    #ASSEMBLER:
+    #take 1 argument only
+    #should be a pre-existing .vsc file
 
+#
 #INITIAL FILE CHECKS
 if [ "$#" -eq "0" ] #0 args
 then
@@ -53,10 +62,16 @@ then
     exit 1
 fi
 
+#debug
+function debugMessage() {
+    output=$1
+    #echo $output
+}
+
 #NOW LOOK AT THE VALID FILE AND VALIDATE/CONVERT COMMANDS
 function successful_program() {
     echo "the content of the .bin file is:"
-    echo `xxd -p -c 1 program.bin`
+    xxd -p -c 1 program.bin
     exit 0
 }
 
@@ -66,8 +81,8 @@ function run_quit_program() {
     then
         rm program.bin
         touch program.bin
-        printf '\x20' >> program.bin #byte 1
-        printf '\x00' >> program.bin #byte 2
+        printf '\x20' >> program.bin #byte 1 (QUIT,0)
+        printf '\x00' >> program.bin #byte 2 (,0)
 
         successful_program
     else
@@ -211,9 +226,23 @@ function run_add-sub_program() {
     touch program.bin
     prev_data=""
     for data in ${dataArray[@]}; do
-        echo $data >> program.bin
-        #printf "\x$data" >> program.bin
-        #echo "obase=16; ibase=2; $data" | bc >> program.bin
+        #toOutput=`printf '%x' "$((2#$data))"` #alternate method
+
+        # USYD CODE CITATION ACKNOWLEDGEMENT
+        #I declare that the majority of the following code has been taken
+        #from the website titled: "Stack Exchange" and it is not my own work.
+        #
+        #original URL
+        #https://unix.stackexchange.com/questions/65280/binary-to-hexadecimal-and-decimal-in-a-shell-script
+        #Last access September, 2026
+        toOutput=`echo "obase=16; ibase=2; $data" | bc` #binary to hex
+        #End of copied code
+
+        debugMessage $data
+        debugMessage $toOutput
+        debugMessage "###"
+        printf "\x$toOutput" >> program.bin #hex to raw binary
+
         if [ "$prev_data" == "00100000" ] && [ "$data" == "00000000" ]; then
             successful_program
         fi
