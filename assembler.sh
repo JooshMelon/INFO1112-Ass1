@@ -33,32 +33,32 @@
 #INITIAL FILE CHECKS
 if [ "$#" -eq "0" ] #0 args
 then
-    echo -e "usage: no argument is provided"
+    echo -e "usage: no arg is provided."
     exit 1
 fi
 
 if [ "$#" -gt "1" ] # >1 args
 then
-    echo -e "usage: more than one arguments are provided"
+    echo -e "usage: more than one arguments are provided."
     exit 1
 fi
 
 if ! [[ $1 =~ .vsc ]]
 then
-    echo -e "usage: input does not have the extension .vsc"
+    echo -e "usage: input does not have the extension .vsc."
     exit 1
 fi
 
 if [ !  -f "$1" ]
 then
-    echo -e "usage: input is not a file or it does not exist"
+    echo -e "usage: input is not a file or it does not exist."
     exit 1
 fi
 
 file_path=$1
 if [ `wc -l < $file_path` -eq "0" ]
 then
-    echo -e "usage: the file is empty - no .bin file is produced"
+    echo -e "usage: the file is empty - no .bin file is produced."
     exit 1
 fi
 
